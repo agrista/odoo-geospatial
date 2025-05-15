@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+
+    <record id="view_crm_partner_geo_form" model="ir.ui.view">
+        <field name="name">view.crm.partner.geo.form.inherit.geoengine.partner</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base_geolocalize.view_crm_partner_geo_form"/>
+        <field name="arch" type="xml">
+            <page name="geo_location" position="attributes">
+                <attribute name="string">Location</attribute>
+            </page>
+            <xpath expr="//page[@name='geo_location']" position="inside">
+                <field name="location"
+                       groups="base_geoengine.group_geoengine_user,base_geoengine.group_geoengine_admin"/>
+            </xpath>
+        </field>
+    </record>
+
+
+</odoo>

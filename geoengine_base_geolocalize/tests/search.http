@@ -1,0 +1,4 @@
+###
+GET https://nominatim.openstreetmap.org/search
+
+{'city': 'Kampala', 'country': 'Uganda', 'countryCodes': 'UG', 'format': 'json', 'limit': 1, 'postalCode': '', 'state': '', 'street': 'Plot 6/8 Nyondo Close'}

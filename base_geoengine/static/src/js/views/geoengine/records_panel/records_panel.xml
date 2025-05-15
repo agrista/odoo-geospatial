@@ -23,7 +23,7 @@
                         class="o_search_panel_section_header text-uppercase cursor-default mb-2"
                     >
                         <span class="fs-6 fw-bold">
-                            <t t-esc="state.modelDescription" />
+                            <t t-out="state.modelDescription" />
                         </span>
                     </header>
                     <SearchBarRecords onInputKeyup.bind="onInputKeyup" />
@@ -39,7 +39,7 @@
                                 t-on-click="() => this.onDisplayPopupRecord(record)"
                             >
                                 <span>
-                                    <t t-esc="record.data.display_name" />
+                                    <t t-out="record.data.display_name" />
                                 </span>
                             </button>
                             <t t-if="state.isClicked === record.resId">
@@ -68,7 +68,7 @@
             </div>
             <div t-else="" class="d-flex justify-content-center text-900">
                 <span class="title-panel">Records (<t
-                    t-esc="props.list.records.length"
+                    t-out="props.list.records.length"
                 />)</span>
             </div>
         </div>

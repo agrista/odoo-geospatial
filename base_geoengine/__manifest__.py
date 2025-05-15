@@ -34,6 +34,7 @@
             "/base_geoengine/static/lib/chromajs-2.4.2/chroma.js",
             "/base_geoengine/static/lib/geostats-2.0.0/geostats.js",
             "/base_geoengine/static/lib/geostats-2.0.0/geostats.css",
+            "/base_geoengine/static/lib/ol-mapbox-style-12.6.0/olms.js",
         ],
     },
     "external_dependencies": {"python": ["shapely", "geojson"]},

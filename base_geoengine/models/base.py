@@ -43,7 +43,7 @@ class Base(models.AbstractModel):
                     if not field.dim:
                         geo_type["dim"] = 2
                     if not field.srid:
-                        geo_type["srid"] = 3857
+                        geo_type["srid"] = 4326
                 res[f_name]["geo_type"] = geo_type
         return res
 

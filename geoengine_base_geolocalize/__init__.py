@@ -1,7 +1,7 @@
 ##############################################################################
 #
-#    Author: Nicolas Bessi
-#    Copyright 2011-2012 Camptocamp SA
+#   Author: Laurent Mignon
+#   Copyright (c) 2015 Acsone SA/NV (http://www.acsone.eu)
 #
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU Affero General Public License as
@@ -17,11 +17,4 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ##############################################################################
-"""Module that manages map view and vector/raster layer"""
-
-from . import base
-from . import geo_raster_layer
-from . import geo_vector_layer
-from . import ir_fields_converter
-from . import ir_view
-from . import ir_model
+from . import models

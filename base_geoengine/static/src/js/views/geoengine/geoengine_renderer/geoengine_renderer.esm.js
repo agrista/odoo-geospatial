@@ -21,6 +21,7 @@ import {
     extractFieldsFromArchInfo,
 } from "@web/model/relational_model/utils";
 import {evaluateExpr} from "@web/core/py_js/py";
+import {session} from "@web/session";
 import {loadBundle, templates} from "@web/core/assets";
 import {parseXML} from "@web/core/utils/xml";
 import {rasterLayersStore} from "../../../raster_layers_store.esm";
@@ -231,6 +232,68 @@ export class GeoengineRenderer extends Component {
                         opacity: background.opacity,
                         source: new ol.source.TileWMS(source_opt_wms),
                     });
+                }
+                case "mvt": {
+                    const mvt_token = session.mapbox_token || ""
+                    const mvt_style = background.url
+                    const mvt_layer = new ol.layer.VectorTile({
+                        title: background.name,
+                        visible: !background.overlay,
+                        declutter: true
+                    });
+                    olms.applyStyle(mvt_layer, mvt_style, {accessToken: mvt_token});
+                    return mvt_layer;
+                }
+                case "mb_wmts": {
+                    const token = session.mapbox_token || ""
+                    const style = background.url.replace('mapbox://styles/', '');
+                    const style_layer = style.split('/')[1];
+                    const tilegrid_opt_mb = {};
+                    const source_opt_mb = {
+                        layer: style_layer,
+                        matrixSet: background.matrix_set,
+                    };
+                    const layer_opt_mb = {
+                        title: background.name,
+                        visible: !background.overlay,
+                        type: "base",
+                        style: "default",
+                    };
+                    if (background.format_suffix) {
+                        source_opt_mb.format = background.format_suffix;
+                    }
+                    if (background.request_encoding) {
+                        source_opt_mb.requestEncoding = background.request_encoding;
+                    }
+                    if (background.projection) {
+                        source_opt_mb.projection = ol.proj.get(background.projection);
+                        if (source_opt_mb.projection) {
+                            const projectionExtent = source_opt_mb.projection.getExtent();
+                            tilegrid_opt_mb.origin =
+                                ol.extent.getTopLeft(projectionExtent);
+                        }
+                    }
+                    if (background.resolutions) {
+                        tilegrid_opt_mb.resolutions = background.resolutions
+                            .split(",")
+                            .map(Number);
+                        const nbRes = tilegrid_opt_mb.resolutions.length;
+                        const matrixIds = new Array(nbRes);
+                        for (let i = 0; i < nbRes; i++) {
+                            matrixIds[i] = i;
+                        }
+                        tilegrid_opt_mb.matrixIds = matrixIds;
+                        tilegrid_opt_mb.tileSize = [512, 512];
+                    }
+                    if (background.max_extent) {
+                        const extent = background.max_extent.split(",").map(Number);
+                        layer_opt_mb.extent = extent;
+                        tilegrid_opt_mb.extent = extent;
+                    }
+                    source_opt_mb.url = 'https://api.mapbox.com/styles/v1/' + style + '/tiles/{TileMatrix}/{TileCol}/{TileRow}?access_token=' + token
+                    source_opt_mb.tileGrid = new ol.tilegrid.WMTS(tilegrid_opt_mb);
+                    layer_opt_mb.source = new ol.source.WMTS(source_opt_mb);
+                    return new ol.layer.Tile(layer_opt_mb);
                 }
                 default: {
                     return undefined;
@@ -488,6 +551,7 @@ export class GeoengineRenderer extends Component {
                 });
         }
     }
+
     /**
      * Allow you to display the info box on the map.
      * @param {*} features
@@ -496,33 +560,29 @@ export class GeoengineRenderer extends Component {
         const feature = features.item(0);
         if (feature !== undefined) {
             const popup = this.getPopup();
-            if (feature !== undefined) {
-                var attributes = feature.get("attributes");
-
-                if (this.cfg_models.includes(feature.get("model"))) {
-                    const model = this.models.find(
-                        (el) => el.model.resModel === feature.get("model")
-                    );
-                    this.mountGeoengineRecord({
-                        popup,
-                        archInfo: model.archInfo,
-                        templateDocs: model.archInfo.templateDocs,
-                        model: model.model,
-                        attributes,
-                    });
-                } else {
-                    this.mountGeoengineRecord({
-                        popup,
-                        archInfo: this.props.archInfo,
-                        templateDocs: this.props.archInfo.templateDocs,
-                        model: this.props.data,
-                        attributes,
-                    });
-                }
-
-                var coord = ol.extent.getCenter(feature.getGeometry().getExtent());
-                this.overlay.setPosition(coord);
+            let attributes = feature.get("attributes");
+            if (this.cfg_models.includes(feature.get("model"))) {
+                const model = this.models.find(
+                    (el) => el.model.resModel === feature.get("model")
+                );
+                this.mountGeoengineRecord({
+                    popup,
+                    archInfo: model.archInfo,
+                    templateDocs: model.archInfo.templateDocs,
+                    model: model.model,
+                    attributes,
+                });
+            } else {
+                this.mountGeoengineRecord({
+                    popup,
+                    archInfo: this.props.archInfo,
+                    templateDocs: this.props.archInfo.templateDocs,
+                    model: this.props.data,
+                    attributes,
+                });
             }
+            let coord = ol.extent.getCenter(feature.getGeometry().getExtent());
+            this.overlay.setPosition(coord);
         } else {
             this.hidePopup();
         }
@@ -924,6 +984,7 @@ export class GeoengineRenderer extends Component {
         }
         return domain;
     }
+
     /**
      * Loads the model's view that is passed to the layer.
      * @param {*} model
@@ -1032,9 +1093,13 @@ export class GeoengineRenderer extends Component {
                 item._values === undefined
                     ? item[cfg.geo_field_id[1]]
                     : item._values[cfg.geo_field_id[1]];
+            const projection = {
+                featureProjection: this.map.getView().getProjection(),
+                dataProjection: 'EPSG:' + item.fields[cfg.geo_field_id[1]].geo_type.srid
+            };
             if (json_geometry) {
                 const feature = new ol.Feature({
-                    geometry: new ol.format.GeoJSON().readGeometry(json_geometry),
+                    geometry: new ol.format.GeoJSON(projection).readGeometry(json_geometry),
                     attributes: attributes,
                     model: cfg.model,
                 });
@@ -1200,6 +1265,7 @@ export class GeoengineRenderer extends Component {
             legend: "",
         };
     }
+
     createStyleText() {
         return new ol.style.Text({
             text: "",
@@ -1253,6 +1319,7 @@ export class GeoengineRenderer extends Component {
         });
         return {fill, stroke};
     }
+
     /**
      * Allows you to find the index of the color to be used according to its value.
      * @param {*} val

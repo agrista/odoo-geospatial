@@ -25,6 +25,8 @@ class GeoRasterLayer(models.Model):
             ("wmts", "WMTS"),
             ("d_wms", "Distant WMS"),
             ("odoo", "Odoo field"),
+            ("mvt", "MVT"),
+            ("mb_wmts", "Mapbox WMTS"),
         ],
         string="Raster layer type",
         default="osm",

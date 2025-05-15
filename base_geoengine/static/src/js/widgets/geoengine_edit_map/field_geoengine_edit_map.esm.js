@@ -90,6 +90,79 @@ export class FieldGeoEngineEditMap extends Component {
     }
 
     /**
+     * Displays a background for the layer being edited.
+     * */
+    createBackgroundLayer() {
+        const background = this.props.background !== undefined ? this.props.background : 'osm';
+        const token = session.mapbox_token || ""
+        const styleUrl = this.props.styleUrl !== undefined ? this.props.styleUrl : 'mapbox://styles/mapbox/outdoors-v12'
+        switch (background) {
+            case "mb_wmts":
+                const style = styleUrl.replace('mapbox://styles/', '');
+                const style_layer = style.split('/')[1];
+                const tilegrid_opt_mb = {};
+                const source_opt_mb = {
+                    layer: style_layer,
+                    matrixSet: this.props.matrixSet !== undefined ? this.props.matrixSet : 'GoogleMapsCompatible',
+                };
+                const layer_opt_mb = {
+                    title: "Background",
+                    visible: true,
+                    type: "base",
+                    style: "default",
+                };
+                if (this.props.formatSuffix) {
+                    source_opt_mb.format = this.props.formatSuffix;
+                }
+                if (this.props.requestEncoding) {
+                    source_opt_mb.requestEncoding = this.props.requestEncoding;
+                }
+                if (this.props.projection) {
+                    source_opt_mb.projection = ol.proj.get(this.props.projection);
+                    if (source_opt_mb.projection) {
+                        const projectionExtent = source_opt_mb.projection.getExtent();
+                        tilegrid_opt_mb.origin =
+                            ol.extent.getTopLeft(projectionExtent);
+                    }
+                }
+                if (this.props.resolutions) {
+                    tilegrid_opt_mb.resolutions = this.props.resolutions
+                        .split(",")
+                        .map(Number);
+                    const nbRes = tilegrid_opt_mb.resolutions.length;
+                    const matrixIds = new Array(nbRes);
+                    for (let i = 0; i < nbRes; i++) {
+                        matrixIds[i] = i;
+                    }
+                    tilegrid_opt_mb.matrixIds = matrixIds;
+                    tilegrid_opt_mb.tileSize = [512, 512];
+                }
+                if (this.props.maxExtent) {
+                    const extent = this.props.maxExtent.split(",").map(Number);
+                    layer_opt_mb.extent = extent;
+                    tilegrid_opt_mb.extent = extent;
+                }
+                source_opt_mb.url = 'https://api.mapbox.com/styles/v1/' + style + '/tiles/{TileMatrix}/{TileCol}/{TileRow}?access_token=' + token
+                source_opt_mb.tileGrid = new ol.tilegrid.WMTS(tilegrid_opt_mb);
+                layer_opt_mb.source = new ol.source.WMTS(source_opt_mb);
+                return new ol.layer.Tile(layer_opt_mb);
+            case 'mvt':
+                const layer = new ol.layer.VectorTile({
+                    title: "Background",
+                    opacity: this.props.opacity,
+                    visible: true,
+                    declutter: true
+                });
+                olms.applyStyle(layer, styleUrl, {accessToken: token});
+                return layer;
+            default:
+                return new ol.layer.Tile({
+                    source: new ol.source.OSM(),
+                });
+        }
+    }
+
+    /**
      * Allows you to centre the area defined for the user.
      * If there is an item to display.
      */
@@ -100,7 +173,7 @@ export class FieldGeoEngineEditMap extends Component {
             if (extent !== infinite_extent) {
                 var map_view = this.map.getView();
                 if (map_view) {
-                    map_view.fit(extent, {maxZoom: this.defaultZoom || 5});
+                    map_view.fit(extent, {maxZoom: this.defaultZoom || 15});
                 }
             }
         }
@@ -131,8 +204,13 @@ export class FieldGeoEngineEditMap extends Component {
              */
             if (this.displayValue === value) return;
             this.displayValue = value;
+            const projection = {
+                featureProjection: this.projection,
+                dataProjection: 'EPSG:' + this.srid
+            };
             var ft = new ol.Feature({
-                geometry: this.format.readGeometry(value),
+                geometry: new ol.format.GeoJSON().readGeometry(value, projection),
+                labelPoint: new ol.format.GeoJSON().readGeometry(value, projection),
             });
             this.source.clear();
             this.source.addFeature(ft);
@@ -229,20 +307,16 @@ export class FieldGeoEngineEditMap extends Component {
     renderMap() {
         this.map = new ol.Map({
             target: this.id,
-            layers: [
-                new ol.layer.Tile({
-                    source: new ol.source.OSM(),
-                }),
-            ],
+            layers: [this.createBackgroundLayer()],
             view: new ol.View({
                 center: [0, 0],
-                zoom: 5,
+                zoom: 7,
             }),
         });
         this.map.addLayer(this.vectorLayer);
         this.format = new ol.format.GeoJSON({
             featureProjection: this.map.getView().getProjection(),
-            dataProjection: "EPSG:" + this.srid,
+            dataProjection: 'EPSG:' + this.srid
         });
 
         if (!this.props.readonly) {
@@ -256,13 +330,13 @@ FieldGeoEngineEditMap.props = {
     ...standardFieldProps,
     opacity: {type: Number, optional: true},
     color: {type: String, optional: true},
-};
-
-FieldGeoEngineEditMap.extractProps = (attrs) => {
-    return {
-        opacity: attrs.options.opacity,
-        color: attrs.options.color,
-    };
+    background: {type: String, optional: true},
+    styleUrl: {type: String, optional: true},
+    matrixSet: {type: String, optional: true},
+    formatSuffix: {type: String, optional: true},
+    requestEncoding: {type: String, optional: true},
+    projection: {type: String, optional: true},
+    resolutions: {type: String, optional: true},
 };
 
 export class FieldGeoEngineEditMapMultiPolygon extends FieldGeoEngineEditMap {
@@ -307,9 +381,24 @@ export class FieldGeoEngineEditMapMultiLine extends FieldGeoEngineEditMap {
     }
 }
 
+
+function extractProps({attrs, options}) {
+    return {
+        opacity: options.opacity,
+        color: options.color,
+        background: options.background,
+        styleUrl: options.styleUrl,
+        matrixSet: options.matrixSet,
+        formatSuffix: options.formatSuffix,
+        requestEncoding: options.requestEncoding,
+        projection: options.projection,
+        resolutions: options.resolutions,
+    };
+}
+
 export const fieldGeoEngineEditMapMultiPolygon = {
     component: FieldGeoEngineEditMapMultiPolygon,
-    extractProps: (attrs) => FieldGeoEngineEditMap.extractProps(attrs),
+    extractProps,
 };
 
 export const fieldGeoEngineEditMapPolygon = {

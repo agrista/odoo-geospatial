@@ -18,6 +18,7 @@ try:
     from shapely.geometry import Point, shape
     from shapely.geometry.base import BaseGeometry
     from shapely.wkb import loads as wkbloads
+    from shapely.geometry import GeometryCollection
 except ImportError:
     logger.warning("Shapely or geojson are not available in the sys path")
 
@@ -31,7 +32,7 @@ class GeoField(fields.Field):
 
     geo_type = None
     dim = "2"
-    srid = 3857
+    srid = 4326
     gist_index = True
 
     @property
@@ -80,7 +81,7 @@ class GeoField(fields.Field):
         return convert.value_to_shape(value, use_wkb=True)
 
     def convert_to_read(self, value, record, use_name_get=True):
-        if not isinstance(value, BaseGeometry):
+        if not isinstance(value, GeometryCollection):
             # read hexadecimal value from database
             shape = self.load_geo(value)
         else:
